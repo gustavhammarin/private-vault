@@ -21,7 +21,7 @@ impl Config {
 
 fn parse_peers(value: &str) -> Vec<String> {
     value
-        .split(",")
+        .split(',')
         .map(|peer| peer.trim().to_string())
         .filter(|peer| !peer.is_empty())
         .collect()

@@ -1,4 +1,4 @@
-use crate::models::ChunkMetadata;
+use crate::models::file::ChunkMetadata;
 
 pub const DEFAULT_CHUNK_SIZE: usize = 1024 * 1024;
 
@@ -25,12 +25,13 @@ pub fn chunk_bytes(data: &[u8], chunk_size: usize) -> Vec<Chunk> {
         .collect()
 }
 
-pub fn to_metadata(chunks: &[Chunk]) -> Vec<ChunkMetadata>{
+pub fn to_metadata(chunks: &[Chunk]) -> Vec<ChunkMetadata> {
     chunks
         .iter()
         .map(|chunk| ChunkMetadata {
             index: chunk.index,
             hash: chunk.hash.clone(),
-            size: chunk.size
-        }).collect()
+            size: chunk.size,
+        })
+        .collect()
 }

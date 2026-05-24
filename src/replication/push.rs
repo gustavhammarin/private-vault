@@ -1,0 +1,48 @@
+use crate::{models::file::FileManifest, replication::service::ReplicationService};
+
+impl ReplicationService {
+    pub async fn replicate_file(&self, manifest: &FileManifest) {
+        if self.peers.is_empty() {
+            tracing::info!("no peers configured, skipping replication");
+            return;
+        }
+
+        for peer in &self.peers {
+            tracing::info!("replicating file {} to {}", manifest.file_id, peer);
+
+            for chunk in &manifest.chunks {
+                if let Err(err) = self.replicate_chunk_to_peer(peer, &chunk.hash).await {
+                    tracing::error!(
+                        "failed to replicate chunk {} to {}: {:?}",
+                        chunk.hash,
+                        peer,
+                        err
+                    );
+                }
+            }
+
+            if let Err(err) = self.peer_client.put_manifest(peer, manifest).await {
+                tracing::error!(
+                    "failed to replicate manifest {} to {}: {:?}",
+                    manifest.file_id,
+                    peer,
+                    err
+                );
+            }
+        }
+    }
+    async fn replicate_chunk_to_peer(&self, peer: &str, hash: &str) -> anyhow::Result<()> {
+        if self
+            .peer_client
+            .has_chunk(peer, hash)
+            .await
+            .unwrap_or(false)
+        {
+            tracing::info!("peer {} already has chunk {}", peer, hash);
+            return Ok(());
+        }
+
+        let data = self.storage.get_chunk(hash).await?;
+        self.peer_client.put_chunk(peer, hash, data).await
+    }
+}

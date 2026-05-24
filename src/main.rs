@@ -1,29 +1,30 @@
-mod models;
-mod config;
-mod chunker;
-mod storage;
-mod replication;
-mod api;
-mod error;
-mod handlers;
+use private_vault::{
+    api::{router, AppState},
+    config::Config,
+    files::FileService,
+    replication::ReplicationService,
+    storage::Storage,
+};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
 
-    let config = config::Config::load();
+    let config = Config::load();
 
-    let storage = storage::Storage::new(&config.storage_path).await?;
+    let storage = Storage::new(&config.storage_path).await?;
 
-    let replication = replication::ReplicationService::new(storage.clone(), config.peers);
+    let replication = ReplicationService::new(storage.clone(), config.peers);
 
-    let state = api::AppState {
+    let file_service = FileService::new(storage.clone(), replication.clone());
+
+    let state = AppState {
         node_id: config.node_id.clone(),
         storage,
-        replication
+        file_service,
     };
 
-    let app = api::router(state);
+    let app = router(state);
 
     let address = format!("0.0.0.0:{}", config.port);
     let listener = tokio::net::TcpListener::bind(&address).await?;
