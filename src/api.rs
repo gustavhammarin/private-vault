@@ -1,4 +1,7 @@
-use crate::handlers::check_chunk::check_chunk;
+use crate::handlers::delete_manifest_test_only::delete_manifest_test_only;
+use crate::handlers::get_chunk::get_chunk;
+use crate::handlers::get_manifest::get_manifest;
+use crate::handlers::{check_chunk::check_chunk, health::file_status};
 use crate::handlers::download_file::download_file;
 use crate::handlers::health::health;
 use crate::handlers::put_chunk::put_chunk;
@@ -27,7 +30,8 @@ pub fn router(state: AppState) -> Router {
         .route("/health", get(health))
         .route("/files", post(upload_file))
         .route("/files/{file_id}", get(download_file))
-        .route("/chunks/{hash}", head(check_chunk).put(put_chunk))
-        .route("/manifests/{file_id}", put(put_manifest))
+        .route("/files/{file_id}/status", get(file_status))
+        .route("/chunks/{hash}", head(check_chunk).get(get_chunk).put(put_chunk))
+        .route("/manifests/{file_id}", put(put_manifest).get(get_manifest).delete(delete_manifest_test_only))
         .with_state(Arc::new(state))
 }

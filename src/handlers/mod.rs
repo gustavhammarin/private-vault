@@ -4,3 +4,6 @@ pub mod download_file;
 pub mod check_chunk;
 pub mod put_chunk;
 pub mod put_manifest;
+pub mod get_chunk;
+pub mod get_manifest;
+pub mod delete_manifest_test_only;

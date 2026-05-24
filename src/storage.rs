@@ -163,7 +163,7 @@ impl Storage {
         Ok(())
     }
 
-    pub async fn get_manifest(&self, file_id: &str) -> Result<FileManifest> {
+    pub async fn get_manifest(&self, file_id: &str) -> Result<Option<FileManifest>> {
         let file_row = sqlx::query(
             r#"
             SELECT file_id, file_name, size
@@ -172,8 +172,12 @@ impl Storage {
             "#,
         )
         .bind(file_id)
-        .fetch_one(&self.pool)
+        .fetch_optional(&self.pool)
         .await?;
+
+        let Some(file_row) = file_row else {
+            return Ok(None)
+        };
 
         let chunk_rows = sqlx::query(
             r#"
@@ -196,16 +200,63 @@ impl Storage {
             })
             .collect();
 
-        Ok(FileManifest {
+        Ok(Some(FileManifest {
             file_id: file_row.get::<String, _>("file_id"),
             file_name: file_row.get::<String, _>("file_name"),
             size: file_row.get::<i64, _>("size"),
             chunks,
-        })
+        }))
     }
 
     fn chunk_path(&self, hash: &str) -> PathBuf {
         self.base_path.join("chunks").join(hash)
+    }
+
+    pub async fn missing_chunks_for_file(
+        &self,
+        manifest: &FileManifest,
+    ) -> anyhow::Result<Vec<ChunkMetadata>> {
+
+        let mut missing = Vec::new();
+
+        for chunk in &manifest.chunks {
+            let exists = self.chunk_exists(&chunk.hash).await?;
+
+            if !exists {
+                missing.push(chunk.clone());
+            }
+        }
+
+        Ok(missing)
+    }
+
+    pub async fn delete_manifest(
+        &self,
+        file_id: &str
+    ) -> anyhow::Result<()> {
+        let mut tx = self.pool.begin().await?;
+
+        sqlx::query(
+        r#"
+             DELETE FROM file_chunks
+             WHERE file_id = ?;           
+            "#
+        )
+        .bind(file_id)
+        .execute(&mut *tx)
+        .await?;
+
+        sqlx::query(r#"
+            DELETE FROM files
+            WHERE file_id = ?;
+        "#)
+        .bind(file_id)
+        .execute(&mut *tx)
+        .await?;
+
+        tx.commit().await?;
+
+        Ok(())
     }
 }
 

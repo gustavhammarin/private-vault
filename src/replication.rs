@@ -101,4 +101,89 @@ impl ReplicationService {
         }
         Ok(())
     }
+
+    pub async fn fetch_chunk_from_peers(&self, hash: &str) -> anyhow::Result<Vec<u8>> {
+        for peer in &self.peers {
+            let url = format!("{peer}/chunks/{hash}");
+
+            tracing::info!("trying to fetch chunk {} from {}", hash, peer);
+
+            let response = match self.client.get(&url).send().await {
+                Ok(response) => response,
+                Err(err) => {
+                    tracing::warn!("failed to contact peer {}: {:?}", peer, err);
+                    continue;
+                },
+            };
+
+            if response.status().as_u16() == 404 {
+                tracing::warn!("peer {} does not have chunk {}", peer, hash);
+                continue;
+            }
+
+            if !response.status().is_success() {
+                tracing::warn!("peer {} returned status {} for chunk {}", peer, response.status(), hash);
+                continue;
+            }
+
+            let bytes = match response.bytes().await {
+                Ok(bytes) => bytes,
+                Err(_) => {
+                    tracing::warn!("failed to read chunk {} from peer {}", hash, peer);
+                    continue;
+                }
+            };
+
+            let calculated_hash = blake3::hash(&bytes).to_hex().to_string();
+
+            if calculated_hash != hash {
+                tracing::warn!("peer {} returned invalid data for chunk {}", peer, hash);
+                continue;
+            }
+
+            tracing::info!("fetched chunk {} from {}", hash, peer);
+            return Ok(bytes.to_vec())
+        }
+
+        Err(anyhow!("chunk {} not found on any peer", hash))
+    }
+
+    pub async fn fetch_manifest_from_peers(&self, file_id: &str) -> anyhow::Result<FileManifest> {
+
+        for peer in &self.peers {
+            let url = format!("{peer}/manifests/{file_id}");
+
+            let response = match self.client.get(&url).send().await {
+                Ok(response) => response,
+                Err(_) => {
+                    tracing::warn!("failed to contact peer: {}", peer);
+                    continue;
+                },
+            };
+
+            if response.status().as_u16() == 404 {
+                tracing::warn!("peer {} does not have manifest {}", peer, file_id);
+                continue;
+            }
+
+            if !response.status().is_success() {
+                tracing::warn!("peer {} returned status {} for manifest {}", peer, response.status(), file_id);
+                continue;
+            }
+
+            let manifest = match response.json::<FileManifest>().await {
+                Ok(manifest) => manifest,
+                Err(_) => {
+                    tracing::warn!("failed to read response body from peer {}", peer);
+                    continue;
+                },
+            };
+
+            tracing::info!("Found manifest {} from peer {}", file_id, peer);
+            return Ok(manifest)
+
+        }
+        
+        Err(anyhow!("manifest {} not found at any peer", file_id))
+    }
 }
