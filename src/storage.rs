@@ -1,4 +1,4 @@
-use crate::models::{ChunkMetadata, FileManifest};
+use crate::models::{ChunkMetadata, FileManifest, FileSummary};
 use anyhow::Result;
 use sqlx::{sqlite::SqlitePoolOptions, Row, SqlitePool};
 use std::path::{Path, PathBuf};
@@ -257,6 +257,27 @@ impl Storage {
         tx.commit().await?;
 
         Ok(())
+    }
+    pub async fn list_files(&self) -> anyhow::Result<Vec<FileSummary>> {
+        let rows = sqlx::query(
+        r#"
+            SELECT file_id, file_name, size
+            FROM files
+            ORDER BY created_at DESC;
+            "#
+        )
+        .fetch_all(&self.pool)
+        .await?;
+        
+        let files = rows.into_iter()
+            .map(|row| FileSummary{
+                file_id: row.get("file_id"),
+                file_name: row.get("file_name"),
+                size: row.get("size"),
+            })
+            .collect();
+
+        Ok(files)
     }
 }
 

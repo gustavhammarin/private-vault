@@ -7,3 +7,5 @@ pub mod put_manifest;
 pub mod get_chunk;
 pub mod get_manifest;
 pub mod delete_manifest_test_only;
+pub mod list_local_files;
+pub mod list_cluster_files;

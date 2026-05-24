@@ -1,7 +1,10 @@
-use anyhow::{anyhow};
+use anyhow::anyhow;
 use reqwest::Client;
 
-use crate::{models::FileManifest, storage::Storage};
+use crate::{
+    models::{FileManifest, FileSummary},
+    storage::Storage,
+};
 
 #[derive(Debug, Clone)]
 pub struct ReplicationService {
@@ -50,23 +53,24 @@ impl ReplicationService {
         }
     }
 
-    async fn replicate_chunk_to_peer(&self, peer: &str, hash:&str) -> anyhow::Result<()> {
+    async fn replicate_chunk_to_peer(&self, peer: &str, hash: &str) -> anyhow::Result<()> {
         if self.peer_has_chunk(peer, hash).await.unwrap_or(false) {
             tracing::info!("peer {} already has chunk {}", peer, hash);
-            return Ok(())
+            return Ok(());
         }
 
         let data = self.storage.get_chunk(hash).await?;
         let url = format!("{peer}/chunks/{hash}");
 
-        let response = self.client
+        let response = self
+            .client
             .put(url)
             .header("content-type", "application/octet-stream")
             .body(data)
             .send()
             .await?;
         if !response.status().is_success() {
-            return Err(anyhow!("peer returned status {}", response.status()))
+            return Err(anyhow!("peer returned status {}", response.status()));
         }
         Ok(())
     }
@@ -77,7 +81,7 @@ impl ReplicationService {
         let response = self.client.head(url).send().await?;
 
         if response.status().is_success() {
-            return Ok(true)
+            return Ok(true);
         }
 
         if response.status().as_u16() == 404 {
@@ -91,13 +95,12 @@ impl ReplicationService {
         peer: &str,
         manifest: &FileManifest,
     ) -> anyhow::Result<()> {
-
         let url = format!("{peer}/manifests/{}", manifest.file_id);
 
         let response = self.client.put(url).json(manifest).send().await?;
 
         if !response.status().is_success() {
-            return Err(anyhow!("peer returned status {}", response.status()))
+            return Err(anyhow!("peer returned status {}", response.status()));
         }
         Ok(())
     }
@@ -113,7 +116,7 @@ impl ReplicationService {
                 Err(err) => {
                     tracing::warn!("failed to contact peer {}: {:?}", peer, err);
                     continue;
-                },
+                }
             };
 
             if response.status().as_u16() == 404 {
@@ -122,7 +125,12 @@ impl ReplicationService {
             }
 
             if !response.status().is_success() {
-                tracing::warn!("peer {} returned status {} for chunk {}", peer, response.status(), hash);
+                tracing::warn!(
+                    "peer {} returned status {} for chunk {}",
+                    peer,
+                    response.status(),
+                    hash
+                );
                 continue;
             }
 
@@ -142,14 +150,13 @@ impl ReplicationService {
             }
 
             tracing::info!("fetched chunk {} from {}", hash, peer);
-            return Ok(bytes.to_vec())
+            return Ok(bytes.to_vec());
         }
 
         Err(anyhow!("chunk {} not found on any peer", hash))
     }
 
     pub async fn fetch_manifest_from_peers(&self, file_id: &str) -> anyhow::Result<FileManifest> {
-
         for peer in &self.peers {
             let url = format!("{peer}/manifests/{file_id}");
 
@@ -158,7 +165,7 @@ impl ReplicationService {
                 Err(_) => {
                     tracing::warn!("failed to contact peer: {}", peer);
                     continue;
-                },
+                }
             };
 
             if response.status().as_u16() == 404 {
@@ -167,7 +174,12 @@ impl ReplicationService {
             }
 
             if !response.status().is_success() {
-                tracing::warn!("peer {} returned status {} for manifest {}", peer, response.status(), file_id);
+                tracing::warn!(
+                    "peer {} returned status {} for manifest {}",
+                    peer,
+                    response.status(),
+                    file_id
+                );
                 continue;
             }
 
@@ -176,14 +188,50 @@ impl ReplicationService {
                 Err(_) => {
                     tracing::warn!("failed to read response body from peer {}", peer);
                     continue;
-                },
+                }
             };
 
             tracing::info!("Found manifest {} from peer {}", file_id, peer);
-            return Ok(manifest)
-
+            return Ok(manifest);
         }
-        
+
         Err(anyhow!("manifest {} not found at any peer", file_id))
+    }
+
+    pub async fn fetch_file_list_from_peers(
+        &self,
+    ) -> anyhow::Result<Vec<(String, Vec<FileSummary>)>> {
+        let mut result = Vec::new();
+
+        for peer in &self.peers {
+            let url = format!("{peer}/files/local");
+
+            let response = match self.client.get(&url).send().await {
+                Ok(response) => response,
+                Err(_) => {
+                    tracing::warn!("failed to fetch file list from peer {}", peer);
+                    continue;
+                }
+            };
+            if !response.status().is_success() {
+                tracing::warn!(
+                    "peer {} returned status {} when listing files",
+                    peer,
+                    response.status()
+                );
+                continue;
+            }
+
+            let files = match response.json::<Vec<FileSummary>>().await {
+                Ok(files) => files,
+                Err(err) => {
+                    tracing::warn!("peer {} returned invalid file list: {:?}", peer, err);
+                    continue;
+                }
+            };
+
+            result.push((peer.clone(), files));
+        }
+        Ok(result)
     }
 }
