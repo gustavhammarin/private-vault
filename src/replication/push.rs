@@ -1,4 +1,4 @@
-use crate::{models::file::FileManifest, replication::service::ReplicationService};
+use crate::{models::file::FileManifest, replication::{service::ReplicationService}};
 
 impl ReplicationService {
     pub async fn replicate_file(&self, manifest: &FileManifest) {
@@ -21,7 +21,7 @@ impl ReplicationService {
                 }
             }
 
-            if let Err(err) = self.peer_client.put_manifest(peer, manifest).await {
+            if let Err(err) = self.transport.put_manifest(peer, manifest).await {
                 tracing::error!(
                     "failed to replicate manifest {} to {}: {:?}",
                     manifest.file_id,
@@ -33,7 +33,7 @@ impl ReplicationService {
     }
     async fn replicate_chunk_to_peer(&self, peer: &str, hash: &str) -> anyhow::Result<()> {
         if self
-            .peer_client
+            .transport
             .has_chunk(peer, hash)
             .await
             .unwrap_or(false)
@@ -43,6 +43,6 @@ impl ReplicationService {
         }
 
         let data = self.storage.get_chunk(hash).await?;
-        self.peer_client.put_chunk(peer, hash, data).await
+        self.transport.put_chunk(peer, hash, data).await
     }
 }

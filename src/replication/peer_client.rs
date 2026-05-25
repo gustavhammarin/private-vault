@@ -1,21 +1,24 @@
 use anyhow::anyhow;
 use reqwest::Client;
-
-use crate::models::file::{FileManifest, FileSummary};
+use crate::{models::file::{FileManifest, FileSummary}, replication::transport::PeerTransport};
 
 #[derive(Debug, Clone)]
-pub struct PeerClient {
-    client: Client,
+pub struct HttpPeerTransport {
+    client: reqwest::Client,
 }
 
-impl PeerClient {
+impl HttpPeerTransport{
     pub fn new() -> Self {
         Self {
             client: Client::new(),
         }
     }
+}
 
-    pub async fn has_chunk(&self, peer: &str, hash: &str) -> anyhow::Result<bool> {
+#[async_trait::async_trait]
+impl PeerTransport for HttpPeerTransport{
+    
+    async fn has_chunk(&self, peer: &str, hash: &str) -> anyhow::Result<bool> {
         let url = format!("{peer}/chunks/{hash}");
         let response = self.client.head(url).send().await?;
 
@@ -30,7 +33,7 @@ impl PeerClient {
         Err(anyhow!("unexpected status {}", response.status()))
     }
 
-    pub async fn put_chunk(&self, peer: &str, hash: &str, data: Vec<u8>) -> anyhow::Result<()> {
+    async fn put_chunk(&self, peer: &str, hash: &str, data: Vec<u8>) -> anyhow::Result<()> {
         let url = format!("{peer}/chunks/{hash}");
 
         let response = self
@@ -48,7 +51,7 @@ impl PeerClient {
         Ok(())
     }
 
-    pub async fn put_manifest(&self, peer: &str, manifest: &FileManifest) -> anyhow::Result<()> {
+    async fn put_manifest(&self, peer: &str, manifest: &FileManifest) -> anyhow::Result<()> {
         let url = format!("{peer}/manifests/{}", manifest.file_id);
 
         let response = self.client.put(url).json(manifest).send().await?;
@@ -59,7 +62,7 @@ impl PeerClient {
 
         Ok(())
     }
-    pub async fn get_chunk(&self, peer: &str, hash: &str) -> anyhow::Result<Option<Vec<u8>>> {
+    async fn get_chunk(&self, peer: &str, hash: &str) -> anyhow::Result<Option<Vec<u8>>> {
         let url = format!("{peer}/chunks/{hash}");
 
         let response = self.client.get(url).send().await?;
@@ -75,7 +78,7 @@ impl PeerClient {
         let bytes = response.bytes().await?;
         Ok(Some(bytes.to_vec()))
     }
-    pub async fn get_manifest(
+    async fn get_manifest(
         &self,
         peer: &str,
         file_id: &str,
@@ -94,7 +97,7 @@ impl PeerClient {
 
         Ok(Some(response.json::<FileManifest>().await?))
     }
-    pub async fn list_local_files(&self, peer: &str) -> anyhow::Result<Vec<FileSummary>> {
+    async fn list_local_files(&self, peer: &str) -> anyhow::Result<Vec<FileSummary>> {
         let url = format!("{peer}/files/local");
 
         let response = self.client.get(url).send().await?;

@@ -1,6 +1,6 @@
 use anyhow::anyhow;
 
-use crate::models::file::{FileManifest, FileSummary};
+use crate::{models::file::{FileManifest, FileSummary}};
 
 use super::service::ReplicationService;
 
@@ -20,7 +20,7 @@ impl ReplicationService {
     }
 
     async fn fetch_chunk_from_peer(&self, peer: &str, hash: &str) -> Option<Vec<u8>> {
-        let data = match self.peer_client.get_chunk(peer, hash).await {
+        let data = match self.transport.get_chunk(peer, hash).await {
             Ok(Some(data)) => data,
             Ok(None) => {
                 tracing::warn!("peer {} does not have chunk {}", peer, hash);
@@ -45,7 +45,7 @@ impl ReplicationService {
 
     pub async fn fetch_manifest_from_peers(&self, file_id: &str) -> anyhow::Result<FileManifest> {
         for peer in &self.peers {
-            match self.peer_client.get_manifest(peer, file_id).await {
+            match self.transport.get_manifest(peer, file_id).await {
                 Ok(Some(manifest)) => {
                     tracing::info!("found manifest {} from peer {}", file_id, peer);
                     return Ok(manifest);
@@ -73,7 +73,7 @@ impl ReplicationService {
         let mut result = Vec::new();
 
         for peer in &self.peers {
-            match self.peer_client.list_local_files(peer).await {
+            match self.transport.list_local_files(peer).await {
                 Ok(files) => {
                     result.push((peer.clone(), files));
                 }

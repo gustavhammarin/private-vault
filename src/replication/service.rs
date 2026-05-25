@@ -1,18 +1,20 @@
-use crate::{replication::peer_client::PeerClient, storage::Storage};
+use std::sync::Arc;
+
+use crate::{replication::{PeerTransport}, storage::Storage};
 
 #[derive(Debug, Clone)]
 pub struct ReplicationService {
     pub(crate) storage: Storage,
     pub(crate) peers: Vec<String>,
-    pub(crate) peer_client: PeerClient,
+    pub transport: Arc<dyn PeerTransport>
 }
 
 impl ReplicationService {
-    pub fn new(storage: Storage, peers: Vec<String>) -> Self {
+    pub fn new(storage: Storage, peers: Vec<String>, transport: Arc<dyn PeerTransport>) -> Self {
         Self {
             storage,
             peers,
-            peer_client: PeerClient::new(),
+            transport
         }
     }
 }
