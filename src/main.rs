@@ -1,9 +1,8 @@
-use std::sync::Arc;
 use private_vault::{
     api::{AppState, router},
     config::Config,
     files::FileService,
-    replication::{HttpPeerTransport, ReplicationService},
+    replication::{ReplicationService},
     storage::Storage,
 };
 
@@ -15,9 +14,7 @@ async fn main() -> anyhow::Result<()> {
 
     let storage = Storage::new(&config.storage_path).await?;
 
-    let transport = Arc::new(HttpPeerTransport::new());
-
-    let replication = ReplicationService::new(storage.clone(), config.peers, transport);
+    let replication = ReplicationService::new(storage.clone(), config.peers);
 
     let file_service = FileService::new(storage.clone(), replication.clone());
 

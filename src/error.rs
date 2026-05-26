@@ -8,7 +8,6 @@ use reqwest::StatusCode;
 
 pub struct AppError {
     status: StatusCode,
-
     message: String,
 }
 

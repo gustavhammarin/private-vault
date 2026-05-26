@@ -6,6 +6,7 @@ use crate::health::health;
 use crate::manifests::{delete_manifest_test_only, get_manifest, put_manifest};
 use crate::storage::Storage;
 
+use axum::extract::DefaultBodyLimit;
 use axum::{
     routing::{get, head, post, put},
     Router,
@@ -23,7 +24,7 @@ pub struct AppState {
 pub fn router(state: AppState) -> Router {
     Router::new()
         .route("/health", get(health))
-        .route("/files", post(upload_file))
+        .route("/files", post(upload_file).layer(DefaultBodyLimit::max(100 * 1024 * 1024)))
         .route("/files/local", get(list_local_files))
         .route("/files/all", get(list_cluster_files))
         .route("/files/{file_id}", get(download_file))

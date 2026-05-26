@@ -3,6 +3,8 @@ mod peer_client;
 mod push;
 mod service;
 mod transport;
+mod policy;
+mod placement;
 
 pub use service::ReplicationService;
 pub use peer_client::HttpPeerTransport;

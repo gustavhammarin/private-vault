@@ -11,12 +11,11 @@ pub struct ChunkMetadata {
 pub struct FileManifest {
     #[serde(rename = "fileId")]
     pub file_id: String,
-
     #[serde(rename = "fileName")]
     pub file_name: String,
-
+    #[serde(rename = "contentType")]
+    pub content_type: Option<String>,
     pub size: i64,
-
     pub chunks: Vec<ChunkMetadata>,
 }
 

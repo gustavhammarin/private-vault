@@ -14,11 +14,11 @@ pub async fn upload_file(
     State(state): State<Arc<AppState>>,
     mut multipart: Multipart,
 ) -> Result<impl IntoResponse, AppError> {
-    let (file_name, bytes) = read_file_from_multipart(&mut multipart).await?;
+    let (file_name, content_type, bytes) = read_file_from_multipart(&mut multipart).await?;
 
     let manifest = state
         .file_service
-        .upload_file(file_name, bytes)
+        .upload_file(file_name, content_type, bytes)
         .await
         .map_err(AppError::internal)?;
 
@@ -27,7 +27,7 @@ pub async fn upload_file(
 
 async fn read_file_from_multipart(
     multipart: &mut Multipart,
-) -> Result<(String, Vec<u8>), AppError> {
+) -> Result<(String, Option<String>, Vec<u8>), AppError> {
     let mut file_name = "uploaded-file".to_string();
 
     while let Some(field) = multipart
@@ -43,8 +43,12 @@ async fn read_file_from_multipart(
             file_name = name.to_string();
         }
 
+        let content_type = field
+            .content_type()
+            .map(|mime| mime.to_string());
+
         let bytes = field.bytes().await.map_err(AppError::bad_request)?;
-        return Ok((file_name, bytes.to_vec()));
+        return Ok((file_name, content_type, bytes.to_vec()));
     }
 
     Err(AppError::bad_request_msg("missing file field"))
@@ -64,7 +68,9 @@ pub async fn download_file(
 
     headers.insert(
         "content-type",
-        HeaderValue::from_static("application/octet-stream"),
+        HeaderValue::from_str(
+            file.content_type.as_deref().unwrap_or("application/octet-stream")
+        ).map_err(|_| AppError::internal_msg("failed to determine content_type"))?,
     );
     let content_disposition = format!("attachment; filename=\"{}\"", file.file_name);
 

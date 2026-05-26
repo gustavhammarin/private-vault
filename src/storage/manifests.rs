@@ -58,7 +58,7 @@ impl Storage {
     pub async fn get_manifest(&self, file_id: &str) -> Result<Option<FileManifest>> {
         let file_row = sqlx::query(
             r#"
-            SELECT file_id, file_name, size
+            SELECT file_id, file_name, content_type, size
             FROM files
             WHERE file_id = ?;
             "#,
@@ -95,6 +95,7 @@ impl Storage {
         Ok(Some(FileManifest {
             file_id: file_row.get::<String, _>("file_id"),
             file_name: file_row.get::<String, _>("file_name"),
+            content_type: file_row.get::<Option<String>, _>("content_type"),
             size: file_row.get::<i64, _>("size"),
             chunks,
         }))

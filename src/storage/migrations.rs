@@ -9,6 +9,7 @@ impl Storage {
             CREATE TABLE IF NOT EXISTS files (
                 file_id TEXT PRIMARY KEY,
                 file_name TEXT NOT NULL,
+                content_type TEXT,
                 size INTEGER NOT NULL,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
             );

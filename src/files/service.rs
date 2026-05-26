@@ -20,6 +20,7 @@ pub struct FileService {
 }
 pub struct DownloadedFile {
     pub file_name: String,
+    pub content_type: Option<String>,
     pub bytes: Vec<u8>,
 }
 
@@ -31,7 +32,7 @@ impl FileService {
         }
     }
 
-    pub async fn upload_file(&self, file_name: String, bytes: Vec<u8>) -> Result<FileManifest> {
+    pub async fn upload_file(&self, file_name: String, content_type: Option<String>, bytes: Vec<u8>) -> Result<FileManifest> {
         let file_id = Uuid::new_v4().to_string();
 
         let chunks = chunk_bytes(&bytes, DEFAULT_CHUNK_SIZE);
@@ -39,6 +40,7 @@ impl FileService {
         let mut manifest = FileManifest {
             file_id,
             file_name,
+            content_type,
             size: 0,
             chunks: to_metadata(&chunks),
         };
@@ -67,6 +69,7 @@ impl FileService {
         }
         Ok(DownloadedFile {
             file_name: manifest.file_name,
+            content_type: manifest.content_type,
             bytes: result,
         })
     }

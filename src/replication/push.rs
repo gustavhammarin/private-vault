@@ -7,11 +7,13 @@ impl ReplicationService {
             return;
         }
 
-        for peer in &self.peers {
+        let target_peers = self.placement.target_peers_for_file(&manifest.file_id, &self.peers, &self.policy);
+
+        for peer in target_peers {
             tracing::info!("replicating file {} to {}", manifest.file_id, peer);
 
             for chunk in &manifest.chunks {
-                if let Err(err) = self.replicate_chunk_to_peer(peer, &chunk.hash).await {
+                if let Err(err) = self.replicate_chunk_to_peer(&peer, &chunk.hash).await {
                     tracing::error!(
                         "failed to replicate chunk {} to {}: {:?}",
                         chunk.hash,
@@ -21,7 +23,7 @@ impl ReplicationService {
                 }
             }
 
-            if let Err(err) = self.transport.put_manifest(peer, manifest).await {
+            if let Err(err) = self.transport.put_manifest(&peer, manifest).await {
                 tracing::error!(
                     "failed to replicate manifest {} to {}: {:?}",
                     manifest.file_id,
