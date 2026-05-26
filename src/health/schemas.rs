@@ -1,8 +1,10 @@
 use serde::Serialize;
 
+use crate::models::peer::Peer;
+
 #[derive(Debug, Serialize)]
 pub struct HealthResponse {
-    #[serde(rename = "nodeId")]
-    pub node_id: String,
+    #[serde(rename = "peerInfo")]
+    pub peer_info: Peer,
     pub status: String,
 }

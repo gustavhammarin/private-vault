@@ -4,6 +4,8 @@ use crate::files::{
 };
 use crate::health::health;
 use crate::manifests::{delete_manifest_test_only, get_manifest, put_manifest};
+use crate::models::peer::Peer;
+use crate::peers::get_peer_info;
 use crate::storage::Storage;
 
 use axum::extract::DefaultBodyLimit;
@@ -16,7 +18,7 @@ use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 pub struct AppState {
-    pub node_id: String,
+    pub peer_info: Peer,
     pub storage: Storage,
     pub file_service: FileService,
 }
@@ -24,7 +26,10 @@ pub struct AppState {
 pub fn router(state: AppState) -> Router {
     Router::new()
         .route("/health", get(health))
-        .route("/files", post(upload_file).layer(DefaultBodyLimit::max(100 * 1024 * 1024)))
+        .route(
+            "/files",
+            post(upload_file).layer(DefaultBodyLimit::max(100 * 1024 * 1024)),
+        )
         .route("/files/local", get(list_local_files))
         .route("/files/all", get(list_cluster_files))
         .route("/files/{file_id}", get(download_file))
@@ -39,5 +44,6 @@ pub fn router(state: AppState) -> Router {
                 .get(get_manifest)
                 .delete(delete_manifest_test_only),
         )
+        .route("/peer", get(get_peer_info))
         .with_state(Arc::new(state))
 }

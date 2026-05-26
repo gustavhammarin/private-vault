@@ -1,15 +1,16 @@
 use anyhow::anyhow;
 
-use crate::{models::file::{FileManifest, FileSummary}};
+use crate::models::file::{FileManifest, FileSummary};
 
 use super::service::ReplicationService;
 
 impl ReplicationService {
     pub async fn fetch_chunk_from_peers(&self, hash: &str) -> anyhow::Result<Vec<u8>> {
-        for peer in &self.peers {
-            tracing::info!("trying to fetch chunk {} from {}", hash, peer);
+        let peers = self.peer_registry.list().await;
+        for peer in &peers {
+            tracing::info!("trying to fetch chunk {} from {}", hash, peer.adresses.http);
 
-            let Some(data) = self.fetch_chunk_from_peer(peer, hash).await else {
+            let Some(data) = self.fetch_chunk_from_peer(&peer.adresses.http, hash).await else {
                 continue;
             };
 
@@ -44,20 +45,21 @@ impl ReplicationService {
     }
 
     pub async fn fetch_manifest_from_peers(&self, file_id: &str) -> anyhow::Result<FileManifest> {
-        for peer in &self.peers {
-            match self.transport.get_manifest(peer, file_id).await {
+        let peers = self.peer_registry.list().await;
+        for peer in &peers {
+            match self.transport.get_manifest(&peer.adresses.http, file_id).await {
                 Ok(Some(manifest)) => {
-                    tracing::info!("found manifest {} from peer {}", file_id, peer);
+                    tracing::info!("found manifest {} from peer {}", file_id, peer.node_id);
                     return Ok(manifest);
                 }
                 Ok(None) => {
-                    tracing::warn!("peer {} does not have manifest {}", peer, file_id);
+                    tracing::warn!("peer {} does not have manifest {}", peer.node_id, file_id);
                 }
                 Err(err) => {
                     tracing::warn!(
                         "failed to fetch manifest {} from {}: {:?}",
                         file_id,
-                        peer,
+                        peer.node_id,
                         err
                     );
                 }
@@ -70,15 +72,16 @@ impl ReplicationService {
     pub async fn fetch_file_list_from_peers(
         &self,
     ) -> anyhow::Result<Vec<(String, Vec<FileSummary>)>> {
+        let peers = self.peer_registry.list().await;
         let mut result = Vec::new();
 
-        for peer in &self.peers {
-            match self.transport.list_local_files(peer).await {
+        for peer in &peers {
+            match self.transport.list_local_files(&peer.adresses.http).await {
                 Ok(files) => {
-                    result.push((peer.clone(), files));
+                    result.push((peer.node_id.clone(), files));
                 }
                 Err(err) => {
-                    tracing::warn!("failed to fetch file list from peer {}: {:?}", peer, err);
+                    tracing::warn!("failed to fetch file list from peer {}: {:?}", peer.node_id, err);
                 }
             }
         }

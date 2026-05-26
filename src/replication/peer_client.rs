@@ -1,13 +1,16 @@
+use crate::{
+    models::file::{FileManifest, FileSummary},
+    replication::transport::PeerTransport,
+};
 use anyhow::anyhow;
 use reqwest::Client;
-use crate::{models::file::{FileManifest, FileSummary}, replication::transport::PeerTransport};
 
 #[derive(Debug, Clone)]
 pub struct HttpPeerTransport {
     client: reqwest::Client,
 }
 
-impl HttpPeerTransport{
+impl HttpPeerTransport {
     pub fn new() -> Self {
         Self {
             client: Client::new(),
@@ -16,8 +19,7 @@ impl HttpPeerTransport{
 }
 
 #[async_trait::async_trait]
-impl PeerTransport for HttpPeerTransport{
-    
+impl PeerTransport for HttpPeerTransport {
     async fn has_chunk(&self, peer: &str, hash: &str) -> anyhow::Result<bool> {
         let url = format!("{peer}/chunks/{hash}");
         let response = self.client.head(url).send().await?;

@@ -1,13 +1,13 @@
 use std::fmt::Debug;
 
-use crate::replication::policy::ReplicationPolicy;
+use crate::{models::peer::Peer, replication::policy::ReplicationPolicy};
 
 #[async_trait::async_trait]
 pub trait ReplicaPlacement: Send + Sync + Debug {
     fn target_peers_for_file(
         &self,
         file_id: &str,
-        peers: &[String],
+        peers: &[Peer],
         policy: &ReplicationPolicy,
     ) -> Vec<String>;
 }
@@ -20,7 +20,7 @@ impl ReplicaPlacement for Blake3ReplicaPlacement {
     fn target_peers_for_file(
         &self,
         file_id: &str,
-        peers: &[String],
+        peers: &[Peer],
         policy: &ReplicationPolicy,
     ) -> Vec<String> {
         let remote_count = policy.remote_replica_count();
@@ -28,11 +28,11 @@ impl ReplicaPlacement for Blake3ReplicaPlacement {
         let mut scored_peers: Vec<([u8; 32], String)> = peers
             .iter()
             .map(|peer| {
-                let score = placement_score(file_id, peer);
-                (score, peer.clone())
+                let score = placement_score(file_id, &peer.node_id);
+                (score, peer.node_id.clone())
             })
             .collect();
-        
+
         scored_peers.sort_by_key(|(score, _)| *score);
 
         scored_peers

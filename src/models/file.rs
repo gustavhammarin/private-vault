@@ -15,6 +15,10 @@ pub struct FileManifest {
     pub file_name: String,
     #[serde(rename = "contentType")]
     pub content_type: Option<String>,
+    #[serde(rename = "replicationFactor")]
+    pub replication_factor: i32,
+    #[serde(rename = "targetPeers")]
+    pub target_peers: Vec<String>,
     pub size: i64,
     pub chunks: Vec<ChunkMetadata>,
 }

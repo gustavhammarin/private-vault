@@ -43,9 +43,7 @@ async fn read_file_from_multipart(
             file_name = name.to_string();
         }
 
-        let content_type = field
-            .content_type()
-            .map(|mime| mime.to_string());
+        let content_type = field.content_type().map(|mime| mime.to_string());
 
         let bytes = field.bytes().await.map_err(AppError::bad_request)?;
         return Ok((file_name, content_type, bytes.to_vec()));
@@ -69,8 +67,11 @@ pub async fn download_file(
     headers.insert(
         "content-type",
         HeaderValue::from_str(
-            file.content_type.as_deref().unwrap_or("application/octet-stream")
-        ).map_err(|_| AppError::internal_msg("failed to determine content_type"))?,
+            file.content_type
+                .as_deref()
+                .unwrap_or("application/octet-stream"),
+        )
+        .map_err(|_| AppError::internal_msg("failed to determine content_type"))?,
     );
     let content_disposition = format!("attachment; filename=\"{}\"", file.file_name);
 
@@ -98,7 +99,7 @@ pub async fn list_cluster_files(
 ) -> Result<impl IntoResponse, AppError> {
     let files = state
         .file_service
-        .list_cluster_files(&state.node_id)
+        .list_cluster_files(&state.peer_info.node_id)
         .await
         .map_err(AppError::internal)?;
 

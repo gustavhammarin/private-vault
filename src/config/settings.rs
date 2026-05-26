@@ -5,7 +5,7 @@ pub struct Config {
     pub node_id: String,
     pub port: String,
     pub storage_path: String,
-    pub peers: Vec<String>,
+    pub peers_base_urls: Vec<String>,
 }
 
 impl Config {
@@ -14,7 +14,7 @@ impl Config {
             node_id: env::var("NODE_ID").unwrap_or("unknown-node".to_string()),
             port: env::var("PORT").unwrap_or("8080".to_string()),
             storage_path: env::var("STORAGE_PATH").unwrap_or("./data".to_string()),
-            peers: parse_peers(&env::var("PEERS").unwrap_or_default()),
+            peers_base_urls: parse_peers(&env::var("PEERS").unwrap_or_default()),
         }
     }
 }

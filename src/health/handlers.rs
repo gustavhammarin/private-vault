@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 pub async fn health(State(state): State<Arc<AppState>>) -> impl IntoResponse {
     Json(HealthResponse {
-        node_id: state.node_id.clone(),
+        peer_info: state.peer_info.clone(),
         status: "ok".to_string(),
     })
 }

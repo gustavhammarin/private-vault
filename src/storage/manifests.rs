@@ -1,5 +1,5 @@
 use anyhow::Result;
-use sqlx::Row;
+use sqlx::{types::Json, Row};
 
 use crate::models::file::{ChunkMetadata, FileManifest, FileSummary};
 
@@ -58,7 +58,7 @@ impl Storage {
     pub async fn get_manifest(&self, file_id: &str) -> Result<Option<FileManifest>> {
         let file_row = sqlx::query(
             r#"
-            SELECT file_id, file_name, content_type, size
+            SELECT file_id, file_name, content_type, replication_factor, target_peers, size
             FROM files
             WHERE file_id = ?;
             "#,
@@ -96,6 +96,8 @@ impl Storage {
             file_id: file_row.get::<String, _>("file_id"),
             file_name: file_row.get::<String, _>("file_name"),
             content_type: file_row.get::<Option<String>, _>("content_type"),
+            replication_factor: file_row.get::<i32, _>("replication_factor"),
+            target_peers: file_row.get::<Json<Vec<String>>, _>("target_peers").0,
             size: file_row.get::<i64, _>("size"),
             chunks,
         }))
@@ -105,12 +107,15 @@ impl Storage {
 
         sqlx::query(
             r#"
-            INSERT OR REPLACE INTO files (file_id, file_name, size)
-            VALUES (?, ?, ?);
+            INSERT OR REPLACE INTO files (file_id, file_name, content_type, replication_factor, target_peers, size)
+            VALUES (?, ?, ?, ?, ?, ?);
             "#,
         )
         .bind(&manifest.file_id)
         .bind(&manifest.file_name)
+        .bind(&manifest.content_type)
+        .bind(&manifest.replication_factor)
+        .bind(Json(&manifest.target_peers))
         .bind(manifest.size)
         .execute(&mut *tx)
         .await?;

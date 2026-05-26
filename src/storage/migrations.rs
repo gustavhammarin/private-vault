@@ -10,6 +10,8 @@ impl Storage {
                 file_id TEXT PRIMARY KEY,
                 file_name TEXT NOT NULL,
                 content_type TEXT,
+                replication_factor INTEGER NOT NULL,
+                target_peers TEXT NOT NULL DEFAULT '[]',
                 size INTEGER NOT NULL,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
             );
